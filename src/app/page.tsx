@@ -22,7 +22,6 @@ export default function Home() {
     sessions,
     activeSession,
     isLoading: sessionsLoading,
-    createSession,
     selectSession,
     deleteSession,
     refreshSessions,
@@ -64,11 +63,10 @@ export default function Home() {
     localStorage.setItem('gemini-chat-settings', JSON.stringify(settings));
   }, [dataStores, enableWebGrounding, selectedModel]);
 
-  const handleNewSession = useCallback(async () => {
+  const handleNewSession = useCallback(() => {
     setActiveAgent(null); // Exit agent mode
-    await createSession();
-    await refreshSessions();
-  }, [createSession, refreshSessions]);
+    selectSession(null); // Clear active session — a new session is created on first message
+  }, [selectSession]);
 
   const handleSelectSession = useCallback((session: Parameters<typeof selectSession>[0]) => {
     setActiveAgent(null); // Exit agent mode when selecting a chat

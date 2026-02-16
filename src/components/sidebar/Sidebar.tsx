@@ -242,7 +242,7 @@ export default function Sidebar({
           <div className="sidebar-scroll flex-1 overflow-y-auto">
             <SessionList
               sessions={sessions}
-              activeSession={activeAgent ? null : activeSession}
+              activeSession={activeSession}
               isLoading={isLoading}
               onSelect={onSelectSession}
               onDelete={onDeleteSession}
