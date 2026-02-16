@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --sidebar-bg: #1a1a2e;
+  --sidebar-hover: #252545;
+  --sidebar-active: #2d2d52;
+  --sidebar-text: #e0e0e0;
+  --sidebar-text-muted: #9ca3af;
+  --sidebar-border: #2d2d52;
+  --input-bg: #f3f4f6;
+  --input-border: #e5e7eb;
+  --accent-blue: #4285f4;
+  --accent-blue-hover: #3b78e7;
+  --gemini-gradient-1: #4285f4;
+  --gemini-gradient-2: #a855f7;
+  --gemini-gradient-3: #ec4899;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-text-muted: var(--sidebar-text-muted);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-accent-blue: var(--accent-blue);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --input-bg: #1e1e2e;
+    --input-border: #374151;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: #4b5563;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+  }
+}
+
+/* Sidebar scrollbar */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Prose overrides for chat */
+.prose pre {
+  margin: 0.5rem 0;
+}
+
+.prose p {
+  margin: 0.25rem 0;
+}
+
+.prose ul, .prose ol {
+  margin: 0.25rem 0;
+}
+
+/* Dialog backdrop */
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Gemini gradient text animation */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.gemini-gradient-text {
+  background: linear-gradient(135deg, #4285f4, #a855f7, #ec4899, #f59e0b, #4285f4);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-shift 6s ease infinite;
+}
+
+/* Quick action chips hover effect */
+.action-chip {
+  transition: all 0.2s ease;
+}
+
+.action-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Smooth transitions */
+.sidebar-transition {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Input container focus-within glow */
+.input-container-glow:focus-within {
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.3);
+  border-color: #4285f4;
+}
+
+/* Follow-up suggestion chips */
+.follow-up-chip {
+  transition: all 0.2s ease;
+}
+
+.follow-up-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Profile menu enter animation */
+@keyframes profile-menu-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.profile-menu-enter {
+  animation: profile-menu-enter 0.15s ease-out;
+}

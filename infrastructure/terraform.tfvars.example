@@ -1,0 +1,18 @@
+# GCP 프로젝트 설정
+project_id = "your-gcp-project-id"
+region     = "asia-northeast3"
+app_name   = "gemini-proxy"
+
+# DLP 설정
+dlp_location       = "asia-northeast3"
+dlp_min_likelihood = "POSSIBLE"
+
+# Gemini 설정
+gemini_app_id     = "your-gemini-app-id"
+endpoint_location = "global"
+gemini_location   = "global"
+
+# Cloud Run 설정
+cloud_run_image  = "" # 비어있으면 Artifact Registry 이미지 자동 참조
+cloud_run_cpu    = "1"
+cloud_run_memory = "512Mi"
