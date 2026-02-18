@@ -7,19 +7,21 @@ export interface GeminiModelOption {
   preview?: boolean;
 }
 
+// ─── StreamAssist Request ────────────────────────────────────────
+
 export interface StreamAssistRequest {
   query: {
     text: string;
   };
   session?: string;
-  answerGenerationSpec?: {
-    modelSpec?: {
-      modelVersion?: string;
-    };
-  };
   fileIds?: string[];
+
+  answerGenerationSpec?: AnswerGenerationSpec;
+  queryUnderstandingSpec?: QueryUnderstandingSpec;
+  searchSpec?: SearchSpec;
+
   agentsSpec?: {
-    agentSpecs: AgentSpec[];
+    agentSpecs: AgentSpec;
   };
   toolsSpec?: {
     vertexAiSearchSpec?: {
@@ -29,6 +31,51 @@ export interface StreamAssistRequest {
   };
 }
 
+export interface AnswerGenerationSpec {
+  modelSpec?: {
+    modelVersion?: string;
+  };
+  promptSpec?: {
+    preamble?: string;
+  };
+  includeCitations?: boolean;
+  answerLanguageCode?: string;
+  ignoreAdversarialQuery?: boolean;
+  ignoreNonAnswerSeekingQuery?: boolean;
+  ignoreLowRelevantContent?: boolean;
+}
+
+export interface QueryUnderstandingSpec {
+  queryRephraserSpec?: {
+    disable?: boolean;
+    maxRephraseSteps?: number; // 1-5
+  };
+  queryClassificationSpec?: {
+    types?: QueryClassificationType[];
+  };
+}
+
+export type QueryClassificationType = 'ADVERSARIAL_QUERY' | 'NON_ANSWER_SEEKING_QUERY';
+
+export interface SearchSpec {
+  searchParams?: {
+    maxReturnResults?: number;
+    filter?: string;
+    boostSpec?: BoostSpec;
+    orderBy?: string;
+    searchResultMode?: 'DOCUMENTS' | 'CHUNKS';
+  };
+}
+
+export interface BoostSpec {
+  conditionBoostSpecs?: ConditionBoostSpec[];
+}
+
+export interface ConditionBoostSpec {
+  condition?: string;
+  boost?: number; // -1.0 to 1.0
+}
+
 export interface AgentSpec {
   agentId: string;
 }
@@ -36,6 +83,8 @@ export interface AgentSpec {
 export interface DataStoreSpec {
   dataStore: string;
 }
+
+// ─── StreamAssist Response ───────────────────────────────────────
 
 export interface StreamAssistResponse {
   answer?: {
@@ -47,9 +96,19 @@ export interface StreamAssistResponse {
     replies?: StreamReply[];
     name?: string;
     assistSkippedReasons?: string[];
+    diagnosticInfo?: {
+      plannerSteps?: PlanningStep[];
+    };
+    queryUnderstandingInfo?: {
+      queryClassificationInfo?: {
+        type?: QueryClassificationType;
+        positive?: boolean;
+      }[];
+    };
   };
   sessionInfo?: {
     session?: string;
+    queryId?: string;
   };
   assistToken?: string;
   session?: string;
@@ -63,7 +122,34 @@ export interface StreamReply {
       text?: string;
       thought?: boolean;
     };
+    contentMetadata?: {
+      contentKind?: 'RESEARCH_PLAN' | 'RESEARCH_QUESTION' | 'RESEARCH_ANSWER' | 'RESEARCH_AUDIO_SUMMARY' | string;
+    };
+    textGroundingMetadata?: TextGroundingMetadata;
   };
+}
+
+export interface TextGroundingMetadata {
+  references?: TextGroundingReference[];
+  segments?: TextGroundingSegment[];
+}
+
+export interface TextGroundingReference {
+  documentMetadata?: {
+    document?: string;
+    uri?: string;
+    title?: string;
+    pageIdentifier?: string;
+    domain?: string;
+    mimeType?: string;
+  };
+}
+
+export interface TextGroundingSegment {
+  startIndex?: string;
+  endIndex?: string;
+  referenceIndices?: number[];
+  text?: string;
 }
 
 export interface PlanningStep {
@@ -79,7 +165,22 @@ export interface StepAction {
   };
   observation?: {
     searchResults?: SearchResult[];
+    groundingInfo?: {
+      groundingSupport?: GroundingSupport[];
+    };
   };
+}
+
+export interface GroundingSupport {
+  segment?: string;
+  groundingAttributions?: GroundingAttribution[];
+}
+
+export interface GroundingAttribution {
+  document?: string;
+  uri?: string;
+  title?: string;
+  confidenceScore?: number; // 0.0 - 1.0
 }
 
 export interface SearchResult {
@@ -110,6 +211,8 @@ export interface Reference {
   };
 }
 
+// ─── Session ─────────────────────────────────────────────────────
+
 export interface Session {
   name: string;
   displayName?: string;
@@ -118,6 +221,8 @@ export interface Session {
   turns?: Turn[];
   startTime?: string;
   endTime?: string;
+  /** Agent ID extracted from displayName metadata (not stored in API natively). */
+  agentId?: string;
 }
 
 export interface Turn {
@@ -128,6 +233,8 @@ export interface Turn {
   answer?: string;
 }
 
+// ─── Message (UI) ────────────────────────────────────────────────
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -136,13 +243,21 @@ export interface Message {
   citations?: Citation[];
   steps?: PlanningStep[];
   references?: Reference[];
+  groundingSupports?: GroundingSupport[];
+  groundingReferences?: TextGroundingReference[];
   isStreaming?: boolean;
+  /** True when the message contains a Deep Research plan awaiting user confirmation. */
+  hasResearchPlan?: boolean;
+  /** Current thinking/research step shown during streaming (e.g. "Analyzing the Request"). */
+  thinkingStep?: string;
   sessionInfo?: {
     session?: string;
   };
   followUpSuggestions?: string[];
   agentId?: string;
 }
+
+// ─── User ────────────────────────────────────────────────────────
 
 export interface UserProfile {
   email: string;
@@ -162,6 +277,8 @@ export interface ChatState {
   error: string | null;
 }
 
+// ─── Agent ───────────────────────────────────────────────────────
+
 export interface Agent {
   name: string;
   displayName: string;
@@ -169,6 +286,26 @@ export interface Agent {
   description?: string;
   state?: string;
 }
+
+export interface AgentCreateRequest {
+  displayName: string;
+  description?: string;
+  dataInsightsAgentConfig?: DataInsightsAgentConfig;
+}
+
+export interface DataInsightsAgentConfig {
+  bqProjectId: string;
+  bqDatasetId: string;
+  allowlistTables?: string[];
+  blocklistTables?: string[];
+  authorizationConfig?: {
+    toolAuthorizations?: {
+      authorization: string;
+    }[];
+  };
+}
+
+// ─── DataStore ───────────────────────────────────────────────────
 
 export interface DataStore {
   name: string;
@@ -179,9 +316,121 @@ export interface DataStore {
   defaultSchemaId?: string;
 }
 
+// ─── File ────────────────────────────────────────────────────────
+
 export interface FileUploadResponse {
   fileId: string;
   name: string;
   size: number;
   mimeType: string;
+}
+
+// ─── Autocomplete ────────────────────────────────────────────────
+
+export interface CompleteQueryResponse {
+  querySuggestions?: QuerySuggestion[];
+  tailMatchTriggered?: boolean;
+}
+
+export interface QuerySuggestion {
+  suggestion?: string;
+  completableFieldPaths?: string[];
+}
+
+// ─── Recommend ───────────────────────────────────────────────────
+
+export interface RecommendRequest {
+  userEvent: UserEventInput;
+  pageSize?: number;
+  filter?: string;
+  userLabels?: Record<string, string>;
+}
+
+export interface RecommendResponse {
+  results?: RecommendResult[];
+  attributionToken?: string;
+  missingIds?: string[];
+}
+
+export interface RecommendResult {
+  id?: string;
+  document?: DocumentResource;
+  metadata?: Record<string, string>;
+}
+
+// ─── Document ────────────────────────────────────────────────────
+
+export interface DocumentResource {
+  name?: string;
+  id?: string;
+  schemaId?: string;
+  parentDocumentId?: string;
+  derivedStructData?: Record<string, unknown>;
+  content?: {
+    rawBytes?: string;
+    uri?: string;
+    mimeType?: string;
+  };
+  jsonData?: string;
+}
+
+export interface ImportDocumentsRequest {
+  bigquerySource?: { projectId: string; datasetId: string; tableId: string };
+  gcsSource?: { inputUris: string[] };
+  inlineSource?: { documents: DocumentResource[] };
+  reconciliationMode?: 'INCREMENTAL' | 'FULL';
+  autoGenerateIds?: boolean;
+}
+
+// ─── User Event ──────────────────────────────────────────────────
+
+export interface UserEventInput {
+  eventType: string;
+  userPseudoId: string;
+  eventTime?: string;
+  userInfo?: {
+    userId?: string;
+    userAgent?: string;
+  };
+  pageInfo?: {
+    pageviewId?: string;
+    pageCategory?: string;
+    uri?: string;
+    referrerUri?: string;
+  };
+  searchInfo?: {
+    searchQuery?: string;
+    orderBy?: string;
+    offset?: number;
+  };
+  documents?: { id?: string; name?: string; uri?: string; quantity?: number }[];
+  tagIds?: string[];
+  attributes?: Record<string, { text?: string[]; numbers?: number[] }>;
+}
+
+// ─── Long-running Operation ──────────────────────────────────────
+
+export interface LongRunningOperation {
+  name?: string;
+  done?: boolean;
+  error?: { code?: number; message?: string };
+  metadata?: Record<string, unknown>;
+  response?: Record<string, unknown>;
+}
+
+// ─── Advanced Chat Settings (UI state) ───────────────────────────
+
+export interface AdvancedChatSettings {
+  preamble?: string;
+  answerLanguageCode?: string;
+  ignoreAdversarialQuery?: boolean;
+  ignoreNonAnswerSeekingQuery?: boolean;
+  ignoreLowRelevantContent?: boolean;
+  queryRephraserDisabled?: boolean;
+  maxRephraseSteps?: number;
+  queryClassificationTypes?: QueryClassificationType[];
+  searchFilter?: string;
+  boostSpecs?: ConditionBoostSpec[];
+  maxReturnResults?: number;
+  searchResultMode?: 'DOCUMENTS' | 'CHUNKS';
 }

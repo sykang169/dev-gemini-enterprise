@@ -7,8 +7,11 @@ import StreamingIndicator from './StreamingIndicator';
 import FollowUpSuggestions from './FollowUpSuggestions';
 import FileUpload from '@/components/files/FileUpload';
 import DlpWarningModal from '@/components/dlp/DlpWarningModal';
+import AdvancedSettingsPanel from './AdvancedSettingsPanel';
+import AutocompleteDropdown from './AutocompleteDropdown';
 import { useStreamAssist } from '@/hooks/useStreamAssist';
 import { useFileUpload } from '@/hooks/useFileUpload';
+import { useAdvancedSettings } from '@/hooks/useAdvancedSettings';
 import type { Session, GeminiModel, Agent } from '@/types/gemini';
 
 interface ChatContainerProps {
@@ -24,6 +27,8 @@ interface ChatContainerProps {
   onSelectAgent?: (agentId: string | null) => void;
   onWebGroundingChange?: (enabled: boolean) => void;
   onModelChange?: (model: GeminiModel) => void;
+  onTrackSearch?: (query: string) => void;
+  onTrackViewItem?: (documentId: string, uri?: string) => void;
 }
 
 const QUICK_ACTIONS = [
@@ -110,11 +115,26 @@ export default function ChatContainer({
   onSelectAgent,
   onWebGroundingChange,
   onModelChange,
+  onTrackSearch,
+  onTrackViewItem,
 }: ChatContainerProps) {
   const { uploadedFiles, isUploading, uploadFile, removeFile } = useFileUpload();
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [showDlpWarning, setShowDlpWarning] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [autocompleteInput, setAutocompleteInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const {
+    settings: advancedSettings,
+    hasActiveSettings: hasAdvancedSettings,
+    updateSetting,
+    toggleQueryClassificationType,
+    addBoostSpec,
+    updateBoostSpec,
+    removeBoostSpec,
+    resetSettings,
+  } = useAdvancedSettings();
 
   const {
     messages,
@@ -131,6 +151,7 @@ export default function ChatContainer({
     enableWebGrounding,
     selectedModel,
     userPseudoId,
+    advancedSettings: hasAdvancedSettings ? advancedSettings : undefined,
     onSessionUpdate,
   });
 
@@ -147,9 +168,23 @@ export default function ChatContainer({
   const handleSend = useCallback(
     (query: string) => {
       sendMessage(query);
+      setAutocompleteInput('');
+      onTrackSearch?.(query);
     },
-    [sendMessage],
+    [sendMessage, onTrackSearch],
   );
+
+  const handleAutocompleteSelect = useCallback(
+    (suggestion: string) => {
+      setAutocompleteInput(suggestion);
+    },
+    [],
+  );
+
+  // Determine first active dataStoreId for autocomplete
+  const firstDataStoreId = dataStores.length > 0
+    ? dataStores[0].split('/').pop() || null
+    : null;
 
   const handleQuickAction = useCallback(
     (query: string) => {
@@ -166,6 +201,9 @@ export default function ChatContainer({
 
     const lastMessage = messages[messages.length - 1];
     if (lastMessage.role !== 'assistant' || !lastMessage.content) return [];
+
+    // Suppress follow-ups when a Deep Research plan is awaiting user confirmation
+    if (lastMessage.hasResearchPlan) return [];
 
     if (lastMessage.followUpSuggestions && lastMessage.followUpSuggestions.length > 0) {
       return lastMessage.followUpSuggestions;
@@ -292,18 +330,40 @@ export default function ChatContainer({
         ) : (
           /* Chat messages */
           <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
-            {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                agentDisplayName={
-                  message.agentId
-                    ? agents.find((a) => a.agentId === message.agentId)?.displayName
-                    : undefined
-                }
-              />
-            ))}
-            <StreamingIndicator isStreaming={isStreaming} steps={streamingMessage?.steps} />
+            {messages.map((message) =>
+              /* Hide empty streaming bubbles – the StreamingIndicator covers this state */
+              message.isStreaming && !message.content ? null : (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  agentDisplayName={
+                    message.agentId
+                      ? agents.find((a) => a.agentId === message.agentId)?.displayName
+                      : undefined
+                  }
+                  onCitationClick={onTrackViewItem}
+                />
+              ),
+            )}
+            <StreamingIndicator isStreaming={isStreaming} steps={streamingMessage?.steps} thinkingStep={streamingMessage?.thinkingStep} />
+
+            {/* Deep Research: show "Start Research" button when plan is ready */}
+            {!isStreaming &&
+              messages.length > 0 &&
+              messages[messages.length - 1].hasResearchPlan && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => handleSend('Start Research')}
+                    disabled={isLoading}
+                    className="flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:from-blue-600 hover:to-purple-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    </svg>
+                    연구 시작 (Start Research)
+                  </button>
+                </div>
+              )}
 
             {followUpSuggestions.length > 0 && !isStreaming && (
               <FollowUpSuggestions
@@ -361,21 +421,46 @@ export default function ChatContainer({
         </div>
       )}
 
-      {/* Chat input */}
-      <ChatInput
-        onSend={handleSend}
-        onFileClick={() => setShowFileUpload(!showFileUpload)}
-        disabled={isLoading}
-        isLoading={isLoading}
-        dataStores={dataStores}
-        activeAgent={activeAgent}
-        agents={agents}
-        enableWebGrounding={enableWebGrounding}
-        selectedModel={selectedModel}
-        onDataStoresChange={onDataStoresChange}
-        onSelectAgent={onSelectAgent}
-        onWebGroundingChange={onWebGroundingChange}
-        onModelChange={onModelChange}
+      {/* Chat input with autocomplete */}
+      <div className="relative">
+        <AutocompleteDropdown
+          dataStoreId={firstDataStoreId}
+          inputValue={autocompleteInput}
+          onSelect={handleAutocompleteSelect}
+          visible={!activeAgent && dataStores.length > 0 && autocompleteInput.length > 1}
+        />
+        <ChatInput
+          onSend={handleSend}
+          onFileClick={() => setShowFileUpload(!showFileUpload)}
+          disabled={isLoading}
+          isLoading={isLoading}
+          dataStores={dataStores}
+          activeAgent={activeAgent}
+          agents={agents}
+          enableWebGrounding={enableWebGrounding}
+          selectedModel={selectedModel}
+          hasAdvancedSettings={hasAdvancedSettings}
+          onDataStoresChange={onDataStoresChange}
+          onSelectAgent={onSelectAgent}
+          onWebGroundingChange={onWebGroundingChange}
+          onModelChange={onModelChange}
+          onToggleAdvancedSettings={() => setShowAdvancedSettings(!showAdvancedSettings)}
+          onInputChange={setAutocompleteInput}
+          externalInputValue={autocompleteInput}
+        />
+      </div>
+
+      {/* Advanced Settings Panel */}
+      <AdvancedSettingsPanel
+        isOpen={showAdvancedSettings}
+        settings={advancedSettings}
+        onClose={() => setShowAdvancedSettings(false)}
+        onUpdateSetting={updateSetting}
+        onToggleQueryClassificationType={toggleQueryClassificationType}
+        onAddBoostSpec={addBoostSpec}
+        onUpdateBoostSpec={updateBoostSpec}
+        onRemoveBoostSpec={removeBoostSpec}
+        onReset={resetSettings}
       />
 
       {/* DLP Warning Modal */}

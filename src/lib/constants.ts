@@ -6,6 +6,10 @@ export const API_ENDPOINTS = {
   DATASTORES: '/api/datastores',
   AGENTS: '/api/agents',
   AUTH: '/api/auth',
+  AUTOCOMPLETE: '/api/autocomplete',
+  RECOMMEND: '/api/recommend',
+  DOCUMENTS: '/api/documents',
+  USER_EVENTS: '/api/user-events',
 } as const;
 
 export const SUPPORTED_FILE_FORMATS = [
@@ -32,6 +36,20 @@ export const GEMINI_MODELS: { id: string; label: string; description: string; pr
   { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'Best for complex tasks' },
   { id: 'gemini-3-flash', label: 'Gemini 3 Flash', description: 'Frontier intelligence built for speed', preview: true },
   { id: 'gemini-3-pro', label: 'Gemini 3 Pro', description: 'State-of-the-art reasoning', preview: true },
+];
+
+export const SUPPORTED_LANGUAGES: { code: string; label: string }[] = [
+  { code: '', label: 'Auto (default)' },
+  { code: 'ko', label: '한국어' },
+  { code: 'en', label: 'English' },
+  { code: 'ja', label: '日本語' },
+  { code: 'zh', label: '中文' },
+  { code: 'es', label: 'Español' },
+  { code: 'fr', label: 'Français' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'pt', label: 'Português' },
+  { code: 'vi', label: 'Tiếng Việt' },
+  { code: 'th', label: 'ไทย' },
 ];
 
 export const DLP_INFO_TYPES = [
@@ -83,3 +101,36 @@ export const buildDataStorePath = (
   const base = `projects/${projectId}/locations/${location}/collections/default_collection/dataStores`;
   return dataStoreId ? `${base}/${dataStoreId}` : base;
 };
+
+export const buildCompleteQueryPath = (
+  projectId: string,
+  location: string,
+  dataStoreId: string,
+) =>
+  `projects/${projectId}/locations/${location}/collections/default_collection/dataStores/${dataStoreId}:completeQuery`;
+
+export const buildRecommendPath = (
+  projectId: string,
+  location: string,
+  dataStoreId: string,
+  servingConfigId: string = 'default_serving_config',
+) =>
+  `projects/${projectId}/locations/${location}/collections/default_collection/dataStores/${dataStoreId}/servingConfigs/${servingConfigId}:recommend`;
+
+export const buildDocumentsPath = (
+  projectId: string,
+  location: string,
+  dataStoreId: string,
+  branchId: string = 'default_branch',
+  documentId?: string,
+) => {
+  const base = `projects/${projectId}/locations/${location}/collections/default_collection/dataStores/${dataStoreId}/branches/${branchId}/documents`;
+  return documentId ? `${base}/${documentId}` : base;
+};
+
+export const buildUserEventsPath = (
+  projectId: string,
+  location: string,
+  dataStoreId: string,
+) =>
+  `projects/${projectId}/locations/${location}/collections/default_collection/dataStores/${dataStoreId}/userEvents`;

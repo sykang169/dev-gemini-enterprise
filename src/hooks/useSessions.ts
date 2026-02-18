@@ -16,7 +16,7 @@ interface UseSessionsReturn {
   createSession: (displayName?: string) => Promise<Session | null>;
   selectSession: (session: Session | null) => void;
   deleteSession: (sessionName: string) => Promise<void>;
-  refreshSessions: () => Promise<void>;
+  refreshSessions: (autoSelectName?: string) => Promise<void>;
 }
 
 export function useSessions({ userPseudoId }: UseSessionsOptions = {}): UseSessionsReturn {
@@ -91,6 +91,10 @@ export function useSessions({ userPseudoId }: UseSessionsOptions = {}): UseSessi
           return res.json();
         })
         .then((fullSession: Session) => {
+          // Preserve agentId from original session if not in full response
+          if (!fullSession.agentId && session.agentId) {
+            fullSession.agentId = session.agentId;
+          }
           if (
             fullSession.turns &&
             fullSession.turns.some(

@@ -5,9 +5,11 @@ import type { PlanningStep } from '@/types/gemini';
 interface StreamingIndicatorProps {
   isStreaming: boolean;
   steps?: PlanningStep[];
+  /** Current thinking/research step label (e.g. "Analyzing the Request"). */
+  thinkingStep?: string;
 }
 
-export default function StreamingIndicator({ isStreaming, steps }: StreamingIndicatorProps) {
+export default function StreamingIndicator({ isStreaming, steps, thinkingStep }: StreamingIndicatorProps) {
   if (!isStreaming) return null;
 
   return (
@@ -26,7 +28,7 @@ export default function StreamingIndicator({ isStreaming, steps }: StreamingIndi
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-purple-500 [animation-delay:150ms]" />
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-pink-500 [animation-delay:300ms]" />
           </div>
-          <span className="text-xs">Thinking...</span>
+          <span className="text-xs">{thinkingStep || 'Thinking...'}</span>
         </div>
 
         {steps && steps.length > 0 && (

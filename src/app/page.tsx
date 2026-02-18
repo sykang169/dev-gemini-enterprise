@@ -7,7 +7,9 @@ import UserProfileMenu from '@/components/user/UserProfileMenu';
 import { useSessions } from '@/hooks/useSessions';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useAgents } from '@/hooks/useAgents';
+import { useEventTracking } from '@/hooks/useEventTracking';
 import { isMicrosoftConfigured } from '@/lib/msal-config';
+import { API_ENDPOINTS } from '@/lib/constants';
 import type { GeminiModel, Session } from '@/types/gemini';
 
 export default function Home() {
@@ -34,6 +36,18 @@ export default function Home() {
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
   const [enableWebGrounding, setEnableWebGrounding] = useState(false);
   const [selectedModel, setSelectedModel] = useState<GeminiModel>('auto');
+  const activeAgentRef = useRef<string | null>(null);
+  activeAgentRef.current = activeAgent;
+
+  // Event tracking for search quality improvement
+  const firstDataStoreId = dataStores.length > 0
+    ? (dataStores[0]?.split('/').pop() || null)
+    : null;
+  const { trackSearch, trackViewItem } = useEventTracking({
+    dataStoreId: firstDataStoreId,
+    userPseudoId,
+    enabled: dataStores.length > 0,
+  });
 
   // Load settings from localStorage after hydration
   useEffect(() => {
@@ -69,7 +83,8 @@ export default function Home() {
   }, [selectSession]);
 
   const handleSelectSession = useCallback((session: Parameters<typeof selectSession>[0]) => {
-    setActiveAgent(null); // Exit agent mode when selecting a chat
+    // Restore the agent from server-side metadata (encoded in displayName)
+    setActiveAgent(session?.agentId ?? null);
     selectSession(session);
   }, [selectSession]);
 
@@ -253,11 +268,28 @@ export default function Home() {
           enableWebGrounding={enableWebGrounding}
           selectedModel={selectedModel}
           userPseudoId={userPseudoId}
-          onSessionUpdate={refreshSessions}
+          onSessionUpdate={(newSessionName?: string) => {
+            // Save agent metadata to session displayName via API
+            if (newSessionName && activeAgentRef.current) {
+              fetch(
+                `${API_ENDPOINTS.SESSIONS}?name=${encodeURIComponent(newSessionName)}`,
+                {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ agentId: activeAgentRef.current }),
+                },
+              ).catch(() => {
+                // Non-critical: agent tag may be missing on reload
+              });
+            }
+            refreshSessions(newSessionName);
+          }}
           onDataStoresChange={setDataStores}
           onSelectAgent={handleSelectAgent}
           onWebGroundingChange={setEnableWebGrounding}
           onModelChange={setSelectedModel}
+          onTrackSearch={trackSearch}
+          onTrackViewItem={trackViewItem}
         />
       </main>
     </div>

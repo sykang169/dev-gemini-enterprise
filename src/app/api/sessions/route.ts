@@ -4,7 +4,24 @@ import {
   listSessions,
   deleteSession,
   getSession,
+  updateSession,
 } from '@/lib/gemini-client';
+import type { Session } from '@/types/gemini';
+
+/** Prefix used to embed agent ID inside displayName. */
+const AGENT_PREFIX_RE = /^\[agent:([^\]]+)\]\s*/;
+
+/** Extract agentId from displayName and clean it up. */
+function parseAgentFromDisplayName(session: Session): Session {
+  if (session.displayName) {
+    const match = session.displayName.match(AGENT_PREFIX_RE);
+    if (match) {
+      session.agentId = match[1];
+      session.displayName = session.displayName.replace(AGENT_PREFIX_RE, '');
+    }
+  }
+  return session;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractAnswerText(detailedAnswer: any): string {
@@ -44,11 +61,13 @@ export async function GET(request: Request) {
         }
       }
 
-      return NextResponse.json(session);
+      return NextResponse.json(parseAgentFromDisplayName(session));
     }
 
     const sessions = await listSessions();
-    return NextResponse.json({ sessions });
+    return NextResponse.json({
+      sessions: sessions.map(parseAgentFromDisplayName),
+    });
   } catch (error) {
     console.error('Sessions error:', error);
     return NextResponse.json(
@@ -67,6 +86,48 @@ export async function POST(request: Request) {
     console.error('Create session error:', error);
     return NextResponse.json(
       { error: 'Failed to create session' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const sessionName = searchParams.get('name');
+
+    if (!sessionName) {
+      return NextResponse.json(
+        { error: 'Session name is required' },
+        { status: 400 },
+      );
+    }
+
+    const { agentId } = await request.json();
+
+    if (!agentId) {
+      return NextResponse.json(
+        { error: 'agentId is required' },
+        { status: 400 },
+      );
+    }
+
+    // Fetch current session to get current displayName
+    const current = await getSession(sessionName);
+    let cleanName = current.displayName || '';
+    // Remove existing agent prefix if any
+    cleanName = cleanName.replace(AGENT_PREFIX_RE, '');
+    const newDisplayName = `[agent:${agentId}] ${cleanName}`;
+
+    const updated = await updateSession(sessionName, {
+      displayName: newDisplayName,
+    });
+
+    return NextResponse.json(parseAgentFromDisplayName(updated));
+  } catch (error) {
+    console.error('Update session error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update session' },
       { status: 500 },
     );
   }

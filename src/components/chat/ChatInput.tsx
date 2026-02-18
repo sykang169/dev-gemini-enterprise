@@ -14,10 +14,14 @@ interface ChatInputProps {
   agents?: Agent[];
   enableWebGrounding?: boolean;
   selectedModel?: GeminiModel;
+  hasAdvancedSettings?: boolean;
   onDataStoresChange?: (stores: string[]) => void;
   onSelectAgent?: (agentId: string | null) => void;
   onWebGroundingChange?: (enabled: boolean) => void;
   onModelChange?: (model: GeminiModel) => void;
+  onToggleAdvancedSettings?: () => void;
+  onInputChange?: (value: string) => void;
+  externalInputValue?: string;
 }
 
 export default function ChatInput({
@@ -30,10 +34,14 @@ export default function ChatInput({
   agents = [],
   enableWebGrounding = false,
   selectedModel = 'auto',
+  hasAdvancedSettings = false,
   onDataStoresChange,
   onSelectAgent,
   onWebGroundingChange,
   onModelChange,
+  onToggleAdvancedSettings,
+  onInputChange,
+  externalInputValue,
 }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
@@ -44,6 +52,24 @@ export default function ChatInput({
   const toolsDropdownRef = useRef<HTMLDivElement>(null);
   const connectorDropdownRef = useRef<HTMLDivElement>(null);
   const modelDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Sync external input value (e.g. autocomplete selection)
+  useEffect(() => {
+    if (externalInputValue !== undefined && externalInputValue !== input) {
+      setInput(externalInputValue);
+      // Auto-resize textarea after external value change
+      if (textareaRef.current) {
+        setTimeout(() => {
+          const textarea = textareaRef.current;
+          if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+          }
+        }, 0);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalInputValue]);
 
   // Fetch available data stores from API
   useEffect(() => {
@@ -153,7 +179,7 @@ export default function ChatInput({
   }, [dataStores, availableDataStores, enableWebGrounding, onDataStoresChange, onWebGroundingChange]);
 
   // Active feature count for indicators
-  const activeToolCount = [isDataStoresActive, enableWebGrounding].filter(Boolean).length;
+  const activeToolCount = [isDataStoresActive, enableWebGrounding, hasAdvancedSettings].filter(Boolean).length;
 
   return (
     <div className="px-4 pb-4 pt-2 sm:px-6 lg:px-8">
@@ -416,7 +442,10 @@ export default function ChatInput({
         <textarea
           ref={textareaRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            onInputChange?.(e.target.value);
+          }}
           onKeyDown={handleKeyDown}
           onInput={handleInput}
           placeholder={activeAgent ? `Ask ${agents.find((a) => a.agentId === activeAgent)?.displayName || 'agent'} anything...` : 'Ask anything, search your data, @mention or /tools'}
@@ -425,6 +454,24 @@ export default function ChatInput({
           rows={1}
           className="flex-1 resize-none bg-transparent py-2 text-sm outline-none placeholder:text-gray-400 disabled:opacity-50 dark:text-gray-100 dark:placeholder:text-gray-500"
         />
+
+        {/* Advanced settings button */}
+        <button
+          type="button"
+          onClick={onToggleAdvancedSettings}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
+            hasAdvancedSettings
+              ? 'text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30'
+              : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300'
+          }`}
+          title="고급 설정"
+          disabled={disabled}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+          </svg>
+        </button>
 
         {/* Model selector */}
         <div className="relative" ref={modelDropdownRef}>
@@ -522,6 +569,19 @@ export default function ChatInput({
               </svg>
               Google Search
             </span>
+          )}
+          {hasAdvancedSettings && (
+            <button
+              type="button"
+              onClick={onToggleAdvancedSettings}
+              className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[11px] text-purple-700 transition-colors hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-3 w-3">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+              </svg>
+              고급 설정
+            </button>
           )}
         </div>
       )}

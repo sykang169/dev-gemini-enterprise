@@ -82,7 +82,8 @@ Google Cloud 인증 토큰(OAuth2 Bearer Token)을 사용합니다.
 - 응답에는 답변 내용, 세션 정보, 쿼리 ID, 추론 과정(planning steps)이 포함
 
 #### 공식 문서 참조 링크
-작업 시 항상 아래 문서를 WebFetch로 참조합니다:
+작업 시 항상 아래 문서를 참조합니다:
+- **프로젝트 내 API 레퍼런스**: `docs/GEMINI_ENTERPRISE_API_REFERENCE.md` (전체 API 스펙, 요청/응답 구조, 미구현 기능 목록 포함)
 - **streamAssist API Reference**: https://docs.cloud.google.com/gemini/enterprise/docs/reference/rest/v1/projects.locations.collections.engines.assistants/streamAssist
 - **streamAssist 사용 가이드**: https://docs.cloud.google.com/gemini/enterprise/docs/get-answers-from-streamassist?hl=ko
 - **Gemini Enterprise API 목록**: https://docs.cloud.google.com/gemini/enterprise/docs/apis?hl=ko

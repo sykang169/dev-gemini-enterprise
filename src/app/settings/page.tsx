@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import DataStoreManager from '@/components/settings/DataStoreManager';
 import ToolsConfig from '@/components/settings/ToolsConfig';
+import AgentManager from '@/components/settings/AgentManager';
+import DocumentManager from '@/components/documents/DocumentManager';
 import Toast from '@/components/ui/Toast';
 import Button from '@/components/ui/Button';
 
@@ -107,6 +109,16 @@ export default function SettingsPage() {
               setSettings((prev) => ({ ...prev, enableWebGrounding: enabled }))
             }
           />
+        </section>
+
+        {/* Agent Management */}
+        <section className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+          <AgentManager />
+        </section>
+
+        {/* Document Management */}
+        <section className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+          <DocumentManager />
         </section>
       </div>
 

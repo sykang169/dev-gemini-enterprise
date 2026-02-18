@@ -5,9 +5,10 @@ import type { Citation, Reference } from '@/types/gemini';
 interface CitationListProps {
   citations: Citation[];
   references?: Reference[];
+  onSourceClick?: (documentId: string, uri?: string) => void;
 }
 
-export default function CitationList({ citations, references }: CitationListProps) {
+export default function CitationList({ citations, references, onSourceClick }: CitationListProps) {
   if (!citations || citations.length === 0) return null;
 
   const uniqueSources = new Map<string, { uri: string; title: string }>();
@@ -53,6 +54,7 @@ export default function CitationList({ citations, references }: CitationListProp
             href={source.uri}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => onSourceClick?.(source.uri, source.uri)}
             className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-3 w-3">
